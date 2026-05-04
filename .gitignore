@@ -1,0 +1,15 @@
+.vercel
+.DS_Store
+.claude/
+*.jpeg
+*.jpg
+icons/preview/
+00-자료조사/
+01-템플릿/
+02-GTM/
+03-Branding/
+04-Character/
+DESIGN-SYSTEM-김실장.md
+02-PRD-*.md
+Icon
+*.xlsx

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>김실장 - 식당 원가 계산기</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e; --ink-soft: #4a4a6a; --ink-mute: #9096a8;
+    --bg: #f5f6fa; --surface: #ffffff;
+    --primary: #3b5fff; --primary-soft: #eef2ff;
+    --rule: #eaecf2;
+    --shadow: 0 2px 10px rgba(15,20,45,0.06);
+    --shadow-lg: 0 12px 32px rgba(15,20,45,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.6; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 560px; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+  .logo {
+    width: 48px; height: 48px; border-radius: 13px;
+    background: var(--surface); border: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0;
+  }
+  .brand-text .t1 { font-size: 12px; letter-spacing: 0.15em; color: var(--ink-mute); font-weight: 600; margin-bottom: 2px; }
+  .brand-text .t2 { font-size: 20px; font-weight: 700; }
+  h1 { font-size: 34px; line-height: 1.25; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .lead { font-size: 16px; color: var(--ink-soft); margin-bottom: 36px; }
+  .cards { display: grid; gap: 14px; }
+  .card {
+    position: relative; display: flex; align-items: center; gap: 16px;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 16px; padding: 20px 22px;
+    text-decoration: none; color: inherit;
+    box-shadow: var(--shadow); transition: all 0.15s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--shadow-lg); }
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--primary-soft); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .card-desc { font-size: 13px; color: var(--ink-mute); }
+  .card-arrow { color: var(--ink-mute); font-size: 20px; flex-shrink: 0; }
+  .card:hover .card-arrow { color: var(--primary); }
+  .tag {
+    display: inline-block; background: var(--primary-soft); color: var(--primary);
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+    margin-left: 6px; font-family: 'JetBrains Mono', monospace; vertical-align: middle;
+  }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--ink-mute); text-decoration: none;
+    margin-bottom: 24px;
+  }
+  .back-link:hover { color: var(--primary); }
+  footer { margin-top: 48px; text-align: center; font-size: 12px; color: var(--ink-mute); }
+  @media (max-width: 520px) { h1 { font-size: 26px; } .card { padding: 16px 18px; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back-link" href="/">← 김실장 홈</a>
+    <div class="brand">
+      <div class="logo">🧮</div>
+      <div class="brand-text">
+        <div class="t1">KIM. SILJANG</div>
+        <div class="t2">식당 원가 계산기</div>
+      </div>
+    </div>
+
+    <h1>식당 원가 계산기</h1>
+    <p class="lead">MVP 웹 앱, 주요 스크린, PRD 를 확인하세요.</p>
+
+    <div class="cards">
+      <a class="card" href="/cost-calculator/">
+        <div class="card-icon">📱</div>
+        <div class="card-body">
+          <div class="card-title">모바일 웹 앱 <span class="tag">MVP</span></div>
+          <div class="card-desc">메뉴 원가 계산기 · 구글 로그인 · 대시보드</div>
+        </div>
+        <div class="card-arrow">→</div>
+      </a>
+
+      <a class="card" href="/cost-calculator/gallery.html">
+        <div class="card-icon">🖼️</div>
+        <div class="card-body">
+          <div class="card-title">스크린 갤러리 <span class="tag">VIEW</span></div>
+          <div class="card-desc">전체 화면 미리보기 · 인터랙션 확인</div>
+        </div>
+        <div class="card-arrow">→</div>
+      </a>
+
+      <a class="card" href="/cost-calculator/prd-readonly.html">
+        <div class="card-icon">📄</div>
+        <div class="card-body">
+          <div class="card-title">PRD <span class="tag">READ</span></div>
+          <div class="card-desc">문서 전체 · 10개 섹션 · 인쇄 가능</div>
+        </div>
+        <div class="card-arrow">→</div>
+      </a>
+    </div>
+
+    <footer>
+      © 2026 우공이산
+    </footer>
+  </div>
+</body>
+</html>
