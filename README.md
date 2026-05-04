@@ -3,8 +3,10 @@
 김실장 2026년 4월 앱.
 
 - 라이브: https://kimsiljang.com/cost-calculator/
-- 메인: https://github.com/im-kimsiljang/home
+- 인덱스 : https://kimsiljang.com/cost-calculator/list.html
 
+- 메인: https://github.com/im-kimsiljang/home
+  
 ## 기능
 
 메뉴별 원가율을 한눈에 계산합니다.
