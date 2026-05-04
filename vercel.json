@@ -2,7 +2,8 @@
   "redirects": [
     { "source": "/", "destination": "/index.html", "permanent": false },
     { "source": "/restaurant-cost-calculator.html", "destination": "/cost-calculator/", "permanent": true },
-    { "source": "/siljang/:path*", "destination": "/:path*", "permanent": true }
+    { "source": "/siljang/:path*", "destination": "/:path*", "permanent": true },
+    { "source": "/cost-calculator/list.html", "destination": "/cost-calculator/overview.html", "permanent": true }
   ],
   "rewrites": [
     { "source": "/robots.txt", "destination": "/SEO/robots.txt" },

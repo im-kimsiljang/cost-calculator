@@ -3,7 +3,7 @@
 김실장 2026년 4월 앱.
 
 - 라이브: https://kimsiljang.com/cost-calculator/
-- 인덱스 : https://kimsiljang.com/cost-calculator/list.html
+- 개요: https://kimsiljang.com/cost-calculator/overview.html
 - 메인: https://github.com/im-kimsiljang/home
   
 ## 기능
