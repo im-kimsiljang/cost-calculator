@@ -4562,7 +4562,7 @@
   <div class="sheet-body">
     <div class="premium-hero">
       <div class="premium-icon">💎</div>
-      <div class="premium-title">첫 달은 무료로 써보세요</div>
+      <div class="premium-title" id="premium-hero-title">첫 달은 무료로 써보세요</div>
       <div class="premium-sub">무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.</div>
     </div>
 
@@ -4570,7 +4570,7 @@
       <div class="premium-feature-row"><span class="check">✓</span> 식자재 무제한 등록</div>
       <div class="premium-feature-row"><span class="check">✓</span> 메뉴 무제한 등록</div>
       <div class="premium-feature-row"><span class="check">✓</span> 영수증 사진 보관 · 언제든지 다시 보기</div>
-      <div class="premium-feature-row"><span class="check">✓</span> 자동 결제 없음 — 매월 직접 결제</div>
+      <div class="premium-feature-row" id="premium-feature-billing"><span class="check">✓</span> 자동 결제 없음 — 매월 직접 결제</div>
     </div>
 
     <div class="premium-price-card">
@@ -4893,6 +4893,8 @@ const FREE_MENU_LIMIT = 15;
 const FREE_ING_LIMIT = 50;
 const PREMIUM_MONTHLY_PRICE = 4900;
 const PREMIUM_MONTH_DAYS = 30;
+// 무료 체험 토글 — 실제 오픈할 때 true 로 복구
+const ENABLE_FREE_TRIAL = false;
 const DEFAULT_STATE = {
   onboarded: false,
   category: null,
@@ -5298,11 +5300,6 @@ async function handleGoogleCredential(response) {
   closeSheet();
   renderAll();
   showToast('👋 ' + state.user.name + '님 환영합니다');
-  // 가게 정보 미등록 시 웰컴 시트 표시
-  const storeEmpty = !(state.storeInfo && state.storeInfo.name);
-  if (storeEmpty && state.onboarded) {
-    setTimeout(() => openSheet('welcome-sheet'), 1200);
-  }
 }
 
 function initGoogleSignIn() {
@@ -5340,11 +5337,6 @@ async function handleFirebaseUser(u) {
   if (onboardEl && state.onboarded) onboardEl.classList.add('hidden');
   if (state.onboarded) navTo('ingredients');
   showToast('👋 ' + getDisplayName() + '님 환영합니다');
-  // 가게 정보 미등록 시 웰컴 시트 표시 (신규 가입 안내)
-  const storeInfoEmpty = !(state.storeInfo && state.storeInfo.name);
-  if (storeInfoEmpty && state.onboarded) {
-    setTimeout(() => openSheet('welcome-sheet'), 1200);
-  }
 }
 
 async function loginWithGoogle() {
@@ -5394,6 +5386,10 @@ function logout() {
 
   // Reset in-memory state to defaults
   state = loadState();
+
+  // Clear UI: 프로필 카드/구독 카드 등 user 데이터가 그려진 곳 다시 렌더
+  try { renderAll(); } catch(e) { console.error('[logout] renderAll error:', e); }
+  try { renderSubscriptionCard(); } catch(e) { console.error('[logout] renderSubscriptionCard error:', e); }
 
   closeSheet();
 
@@ -6025,16 +6021,23 @@ function getDisplayName() {
 /// 아바타 렌더: 사진 > 이니셜 순
 function setAvatarContent(el, photo, displayName, emojiSize) {
   if (!el) return;
-  if (photo) {
-    el.innerHTML = `<img src="${escapeHTML(photo)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
-    el.style.background = 'none';
-    el.style.color = '';
-  } else {
-    const initials = (displayName || '?').slice(-2);
-    const fontPx = Math.round(parseFloat(emojiSize) * 0.5);
-    el.innerHTML = `<span style="font-weight:700;font-size:${fontPx}px;">${escapeHTML(initials)}</span>`;
+  const initials = (displayName || '?').slice(-2);
+  const fontPx = Math.round(parseFloat(emojiSize) * 0.5);
+  const fallbackHTML = `<span style="font-weight:700;font-size:${fontPx}px;">${escapeHTML(initials)}</span>`;
+  const applyFallback = () => {
+    el.innerHTML = fallbackHTML;
     el.style.background = 'var(--primary)';
     el.style.color = '#fff';
+  };
+  if (photo) {
+    // 구글 프로필 이미지는 Referer 검사로 403 나는 경우가 있어 referrerpolicy=no-referrer 필수
+    el.innerHTML = `<img src="${escapeHTML(photo)}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+    el.style.background = 'none';
+    el.style.color = '';
+    const img = el.querySelector('img');
+    if (img) img.onerror = applyFallback;
+  } else {
+    applyFallback();
   }
 }
 
@@ -9361,8 +9364,12 @@ function renderSubscriptionCard() {
   const menuCnt = (state.menus || []).length;
   const ingCnt = (state.ingredients || []).length;
 
-  if (sub.plan === 'premium') {
-    const isTrial = !!(state.subscription && state.subscription.trialUsed && !state.subscription.lastOrderId);
+  // 무료체험 비활성화 모드: 체험 상태(결제 안 한 상태)는 무료 플랜 카드로 표시
+  const isTrialOnly = !!(state.subscription && state.subscription.trialUsed && !state.subscription.lastOrderId);
+  const showAsPremium = sub.plan === 'premium' && !(isTrialOnly && !ENABLE_FREE_TRIAL);
+
+  if (showAsPremium) {
+    const isTrial = isTrialOnly;
     if (isTrial) {
       // 무료 체험 중 (결제 없이 활성화된 상태)
       card.innerHTML = `
@@ -9384,12 +9391,13 @@ function renderSubscriptionCard() {
     }
   } else {
     const trialUsed = !!(state.subscription && state.subscription.trialUsed);
-    const ctaText = trialUsed ? '프리미엄 업그레이드 →' : '첫 달 무료 체험 시작 →';
+    const showTrialCTA = ENABLE_FREE_TRIAL && !trialUsed;
+    const ctaText = showTrialCTA ? '첫 달 무료 체험 시작 →' : '프리미엄 업그레이드 →';
     card.innerHTML = `
       <div class="sub-card sub-card-free" onclick="openPremiumSheet()">
         <div class="sub-card-badge">🆓 무료 플랜</div>
         <div class="sub-card-title">김실장 프리미엄</div>
-        <div class="sub-card-desc">식자재·메뉴를 무제한으로 등록할 수 있어요.<br>${trialUsed ? '' : '<span style="color:var(--primary);font-weight:700;">첫 달은 무료로 써보세요!</span>'}</div>
+        <div class="sub-card-desc">식자재·메뉴를 무제한으로 등록할 수 있어요.<br>${showTrialCTA ? '<span style="color:var(--primary);font-weight:700;">첫 달은 무료로 써보세요!</span>' : ''}</div>
         <div class="sub-card-stats">
           <span>식자재 <span class="sub-card-stat-val">${ingCnt} / ${FREE_ING_LIMIT}</span></span>
           <span>메뉴 <span class="sub-card-stat-val">${menuCnt} / ${FREE_MENU_LIMIT}</span></span>
@@ -9403,10 +9411,13 @@ function openPremiumSheet() {
   if (!state.user) { openLoginSheet(); return; }
   const sub = getSubscriptionState();
   const trialUsed = !!(state.subscription && state.subscription.trialUsed);
+  // 무료체험 비활성화 모드: 체험 상태(결제 X)는 신규 결제로 취급
+  const isTrialOnly = !!(state.subscription && state.subscription.trialUsed && !state.subscription.lastOrderId);
+  const treatAsFresh = !ENABLE_FREE_TRIAL && isTrialOnly;
 
   const statusEl = document.getElementById('premium-current-status');
   if (statusEl) {
-    statusEl.textContent = sub.plan === 'premium'
+    statusEl.textContent = (sub.plan === 'premium' && !treatAsFresh)
       ? `현재 ${formatKoDate(sub.expiresAt)}까지 이용 가능 · ${sub.daysRemaining}일 남음`
       : '';
   }
@@ -9415,14 +9426,26 @@ function openPremiumSheet() {
   const priceUnit = document.getElementById('premium-price-unit');
   const noteEl = document.getElementById('premium-note-text');
   const btn = document.getElementById('premium-pay-btn');
+  const heroTitle = document.getElementById('premium-hero-title');
+  const billingRow = document.getElementById('premium-feature-billing');
 
-  if (sub.plan === 'premium') {
-    // 이미 프리미엄: 연장 결제
+  // 무료체험 토글에 따른 시트 카피 전환
+  if (heroTitle) {
+    heroTitle.textContent = ENABLE_FREE_TRIAL ? '첫 달은 무료로 써보세요' : '프리미엄으로 업그레이드하세요';
+  }
+  if (billingRow) {
+    billingRow.innerHTML = ENABLE_FREE_TRIAL
+      ? '<span class="check">✓</span> 자동 결제 없음 — 매월 직접 결제'
+      : '<span class="check">✓</span> 매월 4,900 원 자동 결제';
+  }
+
+  if (sub.plan === 'premium' && !treatAsFresh) {
+    // 이미 프리미엄 (실제 결제): 연장 결제
     if (priceVal) priceVal.textContent = '4,900 원';
     if (priceUnit) priceUnit.textContent = '/ 1개월 연장';
     if (noteEl) noteEl.innerHTML = '결제 후 30일이 추가로 연장돼요.';
     if (btn) { btn.disabled = false; btn.innerHTML = '4,900 원 결제하기'; btn.onclick = payPremium; }
-  } else if (!trialUsed) {
+  } else if (ENABLE_FREE_TRIAL && !trialUsed) {
     // 무료 체험 미사용: 무료 시작 버튼
     if (priceVal) priceVal.textContent = '첫 달 무료';
     if (priceUnit) priceUnit.textContent = '이후 월 4,900 원';
@@ -9472,19 +9495,15 @@ async function payPremium() {
   btn.disabled = true;
   btn.innerHTML = '⏳ 결제 준비 중...';
   try {
-    const tossPayments = TossPayments('test_ck_jExPeJWYVQOgpodKKMKp849R5gvN');
+    const tossPayments = TossPayments('test_ck_6BYq7GWPVvPPZOWZ1nGG8NE5vbo1');
     const payment = tossPayments.payment({ customerKey: state.user.uid });
-    const orderId = 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     closeSheet();
-    await payment.requestPayment({
+    await payment.requestBillingAuth({
       method: 'CARD',
-      amount: { currency: 'KRW', value: PREMIUM_MONTHLY_PRICE },
-      orderId: orderId,
-      orderName: '김실장 프리미엄 1개월',
-      customerName: state.user.name || '',
+      successUrl: window.location.origin + '/cost-calculator/?billingAuth=success',
+      failUrl: window.location.origin + '/cost-calculator/?billingAuth=fail',
       customerEmail: state.user.email || '',
-      successUrl: window.location.origin + '/cost-calculator/?payment=success&type=premium&amount=' + PREMIUM_MONTHLY_PRICE,
-      failUrl: window.location.origin + '/cost-calculator/?payment=fail',
+      customerName: state.user.name || '',
     });
   } catch (e) {
     if (e.code === 'USER_CANCEL' || e.code === 'INVALID_CARD_COMPANY') {
@@ -9492,7 +9511,7 @@ async function payPremium() {
       btn.innerHTML = '4,900 원 결제하기';
       return;
     }
-    console.warn('Premium payment error:', e);
+    console.warn('Premium billing auth error:', e);
     btn.disabled = false;
     btn.innerHTML = '4,900 원 결제하기';
     showToast('에러: ' + (e.code || '') + ' ' + (e.message || '').slice(0, 100));
@@ -9784,6 +9803,68 @@ renderAuthButton();
 // 결제 결과 처리
 (function handlePaymentResult() {
   const params = new URLSearchParams(location.search);
+
+  // ── 빌링 인증 결과 처리 (토스 빌링 v2: authKey + customerKey 수신) ──
+  const billingAuth = params.get('billingAuth');
+  if (billingAuth === 'success') {
+    const authKey = params.get('authKey') || '';
+    const customerKey = params.get('customerKey') || '';
+    console.log('[Billing Auth Success]', { authKey, customerKey });
+    history.replaceState(null, '', location.pathname);
+    showToast('⏳ 결제 처리 중...');
+    (async () => {
+      try {
+        // Firebase SDK 초기화 + 사용자 복원 대기 (ES module 로딩 / 리다이렉트 직후 타이밍 이슈)
+        const currentUser = await new Promise((resolve, reject) => {
+          const started = Date.now();
+          const check = () => {
+            if (window.fbAuth && window.fbAuth.currentUser) {
+              return resolve(window.fbAuth.currentUser);
+            }
+            if (Date.now() - started > 10000) {
+              return reject(new Error('Firebase 인증 대기 시간 초과 (10s). 다시 로그인해 주세요.'));
+            }
+            setTimeout(check, 150);
+          };
+          check();
+        });
+        const idToken = await currentUser.getIdToken();
+        // 백엔드로 authKey 전달 → billingKey 발급 + 첫달 결제
+        const resp = await fetch('/api/billing/issue', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + idToken,
+          },
+          body: JSON.stringify({ authKey, customerKey }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          throw new Error(data.error || data.message || '결제 실패');
+        }
+        // 로컬 구독 상태 업데이트
+        state.subscription = {
+          ...DEFAULT_SUBSCRIPTION,
+          ...data.subscription,
+        };
+        saveState();
+        renderSubscriptionCard();
+        showToast('💎 프리미엄 구독 완료! ' + formatKoDate(data.subscription.expiresAt) + '까지');
+      } catch (e) {
+        console.error('[Billing Issue Error]', e);
+        showToast('❌ 결제 실패: ' + (e.message || '알 수 없는 오류').slice(0, 120));
+      }
+    })();
+    return;
+  } else if (billingAuth === 'fail') {
+    const code = params.get('code') || '';
+    const message = params.get('message') || '';
+    console.warn('[Billing Auth Fail]', { code, message });
+    showToast('카드 인증 실패: ' + code + ' ' + message.slice(0, 80));
+    history.replaceState(null, '', location.pathname);
+    return;
+  }
+
   const paymentStatus = params.get('payment');
   if (paymentStatus === 'success') {
     const amount = params.get('amount') || '';
