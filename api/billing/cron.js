@@ -58,7 +58,24 @@ module.exports = async function handler(req, res) {
       const expiresAt = sub.expiresAt ? new Date(sub.expiresAt).getTime() : 0;
       const failCount = sub.failCount || 0;
 
-      // 만료 후 MAX_RETRY_DAYS 일 지났으면 자동 만료
+      // 취소된 구독: 청구 skip. 만료 시각이 지나면 자동으로 free 전환.
+      if (sub.cancelled) {
+        if (now > expiresAt) {
+          await userDoc.ref.update({
+            'data.subscription.plan': 'free',
+            'data.subscription.expiredAt': new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          summary.expired++;
+          summary.details.push({ uid, action: 'expired_cancelled' });
+        } else {
+          summary.skipped++;
+          summary.details.push({ uid, action: 'skipped', reason: 'cancelled' });
+        }
+        continue;
+      }
+
+      // 만료 후 MAX_RETRY_DAYS 일 지났으면 자동 만료 (결제 실패 누적)
       const daysAfterExpiry = (now - expiresAt) / (24 * 60 * 60 * 1000);
       if (daysAfterExpiry > MAX_RETRY_DAYS) {
         await userDoc.ref.update({

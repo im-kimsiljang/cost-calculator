@@ -4586,6 +4586,10 @@
       첫 달은 무료로 모든 기능을 사용해보세요.<br>
       두 번째 달부터 월 4,900 원이 청구됩니다.
     </div>
+
+    <div id="premium-secondary-action" style="text-align:center;margin-top:16px;display:none;">
+      <button id="premium-secondary-btn" style="background:none;border:none;color:var(--ink-mute);text-decoration:underline;font-size:13px;cursor:pointer;padding:8px;"></button>
+    </div>
   </div>
   <div class="sheet-footer">
     <button class="premium-pay-btn" id="premium-pay-btn" onclick="handlePremiumAction()">
@@ -9379,14 +9383,23 @@ function renderSubscriptionCard() {
           <div class="sub-card-meta">체험 기간 · ${formatKoDate(sub.expiresAt)} 만료 · <strong>${sub.daysRemaining}일 남음</strong></div>
           <div class="sub-card-cta">체험 후 월 4,900원 · 결제하기 →</div>
         </div>`;
+    } else if (state.subscription && state.subscription.cancelled) {
+      // 정기결제 취소됨 — 남은 기간 동안은 프리미엄 유지
+      card.innerHTML = `
+        <div class="sub-card sub-card-premium" onclick="openPremiumSheet()">
+          <div class="sub-card-badge">⏳ 구독 취소됨</div>
+          <div class="sub-card-title">${formatKoDate(sub.expiresAt)}까지 이용 가능</div>
+          <div class="sub-card-meta">자동 갱신이 중단됐어요 · <strong>${sub.daysRemaining}일 남음</strong></div>
+          <div class="sub-card-cta">구독 정보 →</div>
+        </div>`;
     } else {
-      // 유료 프리미엄
+      // 유료 프리미엄 (정기결제 활성)
       card.innerHTML = `
         <div class="sub-card sub-card-premium" onclick="openPremiumSheet()">
           <div class="sub-card-badge">💎 프리미엄</div>
           <div class="sub-card-title">무제한 등록 이용 중</div>
-          <div class="sub-card-meta">만료일 · ${formatKoDate(sub.expiresAt)} · <strong>${sub.daysRemaining}일 남음</strong></div>
-          <div class="sub-card-cta">연장 결제 →</div>
+          <div class="sub-card-meta">다음 결제일 · ${formatKoDate(sub.expiresAt)} · <strong>${sub.daysRemaining}일 남음</strong></div>
+          <div class="sub-card-cta">구독 관리 →</div>
         </div>`;
     }
   } else {
@@ -9424,24 +9437,36 @@ function openPremiumSheet() {
   const billingRow = document.getElementById('premium-feature-billing');
   const statusEl = document.getElementById('premium-current-status');
   const priceCard = document.querySelector('.premium-price-card');
+  const secondaryWrap = document.getElementById('premium-secondary-action');
+  const secondaryBtn = document.getElementById('premium-secondary-btn');
 
   const alreadyPaid = sub.plan === 'premium' && !treatAsFresh;
+  const isCancelled = !!(state.subscription && state.subscription.cancelled);
 
   // 결제한 사용자엔 가격 카드/상태/노트 숨김 (정기결제는 자동 갱신이라 수동 결제 CTA 불필요)
   if (priceCard) priceCard.style.display = alreadyPaid ? 'none' : '';
   if (statusEl) statusEl.style.display = alreadyPaid ? 'none' : '';
   if (noteEl) noteEl.style.display = alreadyPaid ? 'none' : '';
   if (statusEl && !alreadyPaid) statusEl.textContent = '';
+  if (secondaryWrap) secondaryWrap.style.display = 'none';
 
   if (heroTitle) {
-    heroTitle.textContent = alreadyPaid
-      ? '이미 프리미엄 구독중입니다'
-      : (ENABLE_FREE_TRIAL ? '첫 달은 무료로 써보세요' : '프리미엄으로 업그레이드하세요');
+    if (alreadyPaid && isCancelled) {
+      heroTitle.textContent = '구독이 취소되었어요';
+    } else if (alreadyPaid) {
+      heroTitle.textContent = '이미 프리미엄 구독중입니다';
+    } else {
+      heroTitle.textContent = ENABLE_FREE_TRIAL ? '첫 달은 무료로 써보세요' : '프리미엄으로 업그레이드하세요';
+    }
   }
   if (heroSub) {
-    heroSub.innerHTML = alreadyPaid
-      ? `다음 결제일 <strong>${formatKoDate(sub.expiresAt)}</strong> · ${sub.daysRemaining}일 남음<br>매월 자동으로 갱신됩니다.`
-      : '무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.';
+    if (alreadyPaid && isCancelled) {
+      heroSub.innerHTML = `<strong>${formatKoDate(sub.expiresAt)}</strong>까지 이용 가능 · ${sub.daysRemaining}일 남음<br>자동 갱신이 중단되었어요.`;
+    } else if (alreadyPaid) {
+      heroSub.innerHTML = `다음 결제일 <strong>${formatKoDate(sub.expiresAt)}</strong> · ${sub.daysRemaining}일 남음<br>매월 자동으로 갱신됩니다.`;
+    } else {
+      heroSub.innerHTML = '무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.';
+    }
   }
   if (billingRow) {
     billingRow.innerHTML = ENABLE_FREE_TRIAL
@@ -9450,8 +9475,18 @@ function openPremiumSheet() {
   }
 
   if (alreadyPaid) {
-    // 이미 정기결제 구독중: 정보만 표시, 결제 CTA 없음
+    // 이미 정기결제 구독중: 정보만 표시, 결제 CTA 없음. 취소/철회 버튼만 노출
     if (btn) { btn.disabled = false; btn.innerHTML = '닫기'; btn.onclick = closeSheet; }
+    if (secondaryWrap && secondaryBtn) {
+      secondaryWrap.style.display = '';
+      if (isCancelled) {
+        secondaryBtn.textContent = '취소 철회하기 (자동 갱신 재개)';
+        secondaryBtn.onclick = confirmResumeSubscription;
+      } else {
+        secondaryBtn.textContent = '정기결제 취소하기';
+        secondaryBtn.onclick = confirmCancelSubscription;
+      }
+    }
   } else if (ENABLE_FREE_TRIAL && !trialUsed) {
     // 무료 체험 미사용: 무료 시작 버튼
     if (priceVal) priceVal.textContent = '첫 달 무료';
@@ -9523,6 +9558,58 @@ async function payPremium() {
     btn.innerHTML = '4,900 원 결제하기';
     showToast('에러: ' + (e.code || '') + ' ' + (e.message || '').slice(0, 100));
   }
+}
+
+// ── 정기결제 취소 / 철회 ──
+async function callBillingAction(path, confirmMsg, successMsg) {
+  if (!state.user) { openLoginSheet(); return; }
+  if (!confirm(confirmMsg)) return;
+  const secondaryBtn = document.getElementById('premium-secondary-btn');
+  if (secondaryBtn) { secondaryBtn.disabled = true; secondaryBtn.textContent = '⏳ 처리 중...'; }
+  try {
+    if (!window.fbAuth || !window.fbAuth.currentUser) {
+      throw new Error('로그인 정보가 없어요. 다시 로그인해 주세요.');
+    }
+    const idToken = await window.fbAuth.currentUser.getIdToken();
+    const resp = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.success) {
+      throw new Error(data.error || '처리 실패');
+    }
+    // 로컬 state 업데이트 (서버 응답 기반)
+    state.subscription = { ...(state.subscription || {}), ...data.subscription };
+    saveState();
+    renderSubscriptionCard();
+    closeSheet();
+    showToast(successMsg);
+  } catch (e) {
+    console.error('[billing action]', path, e);
+    showToast('❌ ' + (e.message || '오류').slice(0, 120));
+    if (secondaryBtn) { secondaryBtn.disabled = false; }
+  }
+}
+
+function confirmCancelSubscription() {
+  const expiresAt = state.subscription && state.subscription.expiresAt;
+  const dateStr = expiresAt ? formatKoDate(expiresAt) : '';
+  const msg =
+    '정기결제를 취소하시겠어요?\n\n' +
+    (dateStr ? `${dateStr}까지는 프리미엄을 계속 이용할 수 있어요.\n` : '') +
+    '그 이후엔 자동 갱신되지 않아요.\n\n' +
+    '계속하시겠어요?';
+  callBillingAction('/api/billing/cancel', msg, '😢 정기결제가 취소되었어요. ' + (dateStr ? dateStr + '까지 이용 가능' : ''));
+}
+
+function confirmResumeSubscription() {
+  const msg =
+    '정기결제 취소를 철회하시겠어요?\n\n' +
+    '다음 결제일에 자동으로 4,900원이 청구되고 30일이 연장돼요.\n\n' +
+    '계속하시겠어요?';
+  callBillingAction('/api/billing/resume', msg, '🎉 정기결제가 다시 시작됐어요.');
 }
 
 function applyPremiumPayment(orderId, paymentKey, amount) {
