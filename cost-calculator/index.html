@@ -4563,7 +4563,7 @@
     <div class="premium-hero">
       <div class="premium-icon">💎</div>
       <div class="premium-title" id="premium-hero-title">첫 달은 무료로 써보세요</div>
-      <div class="premium-sub">무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.</div>
+      <div class="premium-sub" id="premium-hero-sub">무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.</div>
     </div>
 
     <div class="premium-features">
@@ -9415,23 +9415,33 @@ function openPremiumSheet() {
   const isTrialOnly = !!(state.subscription && state.subscription.trialUsed && !state.subscription.lastOrderId);
   const treatAsFresh = !ENABLE_FREE_TRIAL && isTrialOnly;
 
-  const statusEl = document.getElementById('premium-current-status');
-  if (statusEl) {
-    statusEl.textContent = (sub.plan === 'premium' && !treatAsFresh)
-      ? `현재 ${formatKoDate(sub.expiresAt)}까지 이용 가능 · ${sub.daysRemaining}일 남음`
-      : '';
-  }
-
   const priceVal = document.getElementById('premium-price-val');
   const priceUnit = document.getElementById('premium-price-unit');
   const noteEl = document.getElementById('premium-note-text');
   const btn = document.getElementById('premium-pay-btn');
   const heroTitle = document.getElementById('premium-hero-title');
+  const heroSub = document.getElementById('premium-hero-sub');
   const billingRow = document.getElementById('premium-feature-billing');
+  const statusEl = document.getElementById('premium-current-status');
+  const priceCard = document.querySelector('.premium-price-card');
 
-  // 무료체험 토글에 따른 시트 카피 전환
+  const alreadyPaid = sub.plan === 'premium' && !treatAsFresh;
+
+  // 결제한 사용자엔 가격 카드/상태/노트 숨김 (정기결제는 자동 갱신이라 수동 결제 CTA 불필요)
+  if (priceCard) priceCard.style.display = alreadyPaid ? 'none' : '';
+  if (statusEl) statusEl.style.display = alreadyPaid ? 'none' : '';
+  if (noteEl) noteEl.style.display = alreadyPaid ? 'none' : '';
+  if (statusEl && !alreadyPaid) statusEl.textContent = '';
+
   if (heroTitle) {
-    heroTitle.textContent = ENABLE_FREE_TRIAL ? '첫 달은 무료로 써보세요' : '프리미엄으로 업그레이드하세요';
+    heroTitle.textContent = alreadyPaid
+      ? '이미 프리미엄 구독중입니다'
+      : (ENABLE_FREE_TRIAL ? '첫 달은 무료로 써보세요' : '프리미엄으로 업그레이드하세요');
+  }
+  if (heroSub) {
+    heroSub.innerHTML = alreadyPaid
+      ? `다음 결제일 <strong>${formatKoDate(sub.expiresAt)}</strong> · ${sub.daysRemaining}일 남음<br>매월 자동으로 갱신됩니다.`
+      : '무료 플랜은 식자재 50개 · 메뉴 10개까지만 등록할 수 있어요.<br>프리미엄으로 업그레이드하면 제한 없이 쭉 쓸 수 있어요.';
   }
   if (billingRow) {
     billingRow.innerHTML = ENABLE_FREE_TRIAL
@@ -9439,12 +9449,9 @@ function openPremiumSheet() {
       : '<span class="check">✓</span> 매월 4,900 원 자동 결제';
   }
 
-  if (sub.plan === 'premium' && !treatAsFresh) {
-    // 이미 프리미엄 (실제 결제): 연장 결제
-    if (priceVal) priceVal.textContent = '4,900 원';
-    if (priceUnit) priceUnit.textContent = '/ 1개월 연장';
-    if (noteEl) noteEl.innerHTML = '결제 후 30일이 추가로 연장돼요.';
-    if (btn) { btn.disabled = false; btn.innerHTML = '4,900 원 결제하기'; btn.onclick = payPremium; }
+  if (alreadyPaid) {
+    // 이미 정기결제 구독중: 정보만 표시, 결제 CTA 없음
+    if (btn) { btn.disabled = false; btn.innerHTML = '닫기'; btn.onclick = closeSheet; }
   } else if (ENABLE_FREE_TRIAL && !trialUsed) {
     // 무료 체험 미사용: 무료 시작 버튼
     if (priceVal) priceVal.textContent = '첫 달 무료';
